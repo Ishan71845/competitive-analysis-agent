@@ -2,21 +2,18 @@ import os
 from api_config import GOOGLE_API_KEY
 from google import genai
 from google.genai import types
-from dotenv import load_dotenv
 from datetime import datetime
-
-load_dotenv()
 
 class ReportGeneratorAgent:
     def __init__(self):
         self.client = genai.Client(api_key=GOOGLE_API_KEY)
-        self.model_id = "gemini-2.5-flash"
+        self.model_id = 'gemini-2.5-flash'
         
     def generate_final_report(self, company_name: str, all_data: dict) -> str:
-        """Generate comprehensive final report"""
-        print(f"\n📝 Generating final report for {company_name}...")
+        '''Generate comprehensive final report'''
+        print(f'\n?? Generating final report for {company_name}...')
         
-        prompt = f"""
+        prompt = f'''
 You are a business intelligence analyst. Generate a comprehensive competitive analysis report.
 
 Use ALL the following data to create a professional report:
@@ -82,7 +79,7 @@ Create a professional report with these sections:
 [Final thoughts and key takeaways]
 
 Make it professional, data-driven, and actionable. Use markdown formatting.
-"""
+'''
         
         response = self.client.models.generate_content(
             model=self.model_id,
@@ -91,17 +88,17 @@ Make it professional, data-driven, and actionable. Use markdown formatting.
         
         report = response.text
         
-        print(f"✅ Final report generated!")
+        print(f'? Final report generated!')
         
         return report
     
     def save_report(self, report: str, company_name: str) -> str:
-        """Save report to file"""
-        filename = f"{company_name.replace(' ', '_')}_competitive_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        '''Save report to file'''
+        filename = f'{company_name.replace(' ', '_')}_competitive_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md'
         
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(report)
         
-        print(f"\n💾 Report saved to: {filename}")
+        print(f'\n?? Report saved to: {filename}')
         
         return filename

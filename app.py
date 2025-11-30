@@ -1,15 +1,16 @@
-import streamlit as st
+﻿import streamlit as st
 import sys
 import os
-import json
 from datetime import datetime
+from PIL import Image
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.enums import TA_CENTER
 import re
 import html
+from io import BytesIO
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -17,113 +18,44 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from agents.researcher import ResearcherAgent
 from agents.analyst import AnalystAgent
 from agents.report_generator import ReportGeneratorAgent
+from agents.comparison_agent import ComparisonAgent
+from agents.visual_generator import VisualGeneratorAgent
 
 # Page config
 st.set_page_config(
-    page_title="Competitive Analysis Agent",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title='Competitive Analysis Agent',
+    page_icon='📊',
+    layout='wide',
+    initial_sidebar_state='expanded'
 )
 
-# Custom CSS - Professional & Minimal
-st.markdown("""
+# Custom CSS
+st.markdown('''
 <style>
     .main-header {
         font-size: 2.5rem;
         font-weight: 600;
         color: #1f2937;
-        margin-bottom: 0.5rem;
-    }
-    .sub-header {
-        color: #6b7280;
-        font-size: 1rem;
-        margin-bottom: 2rem;
-    }
-    .stProgress > div > div > div > div {
-        background-color: #3b82f6;
+        text-align: center;
     }
     .step-complete {
-        padding: 0.75rem 1rem;
-        border-radius: 0.375rem;
-        background-color: #f0fdf4;
-        border-left: 4px solid #10b981;
-        color: #065f46;
-        margin: 0.5rem 0;
-        font-size: 0.9rem;
-    }
-    .step-header {
-        color: #1f2937;
-        font-size: 1.1rem;
-        font-weight: 500;
-        margin: 1rem 0;
-    }
-    .history-item {
         padding: 0.75rem;
-        border-radius: 0.375rem;
-        background-color: #f9fafb;
-        border: 1px solid #e5e7eb;
-        margin-bottom: 0.5rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .history-item:hover {
-        background-color: #f3f4f6;
-        border-color: #d1d5db;
-    }
-    .sidebar-section {
-        margin-bottom: 1.5rem;
-    }
-    .sidebar-title {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        border-radius: 0.5rem;
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+        margin: 0.5rem 0;
     }
 </style>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
-# History functions
-HISTORY_FILE = "session_history.json"
-
-def load_history():
-    """Load research history from JSON file"""
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            return []
-    return []
-
-def save_to_history(company_name, timestamp):
-    """Save research to history"""
-    history = load_history()
-    history.insert(0, {
-        "company": company_name,
-        "timestamp": timestamp,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
-    })
-    # Keep only last 10 items
-    history = history[:10]
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history, f, indent=2)
-
-def markdown_to_pdf(markdown_text, company_name):
-    """Convert markdown report to PDF with better error handling"""
-    from io import BytesIO
-    
+def markdown_to_pdf(markdown_text, company_name, chart_paths=None):
+    """Convert markdown report to PDF with optional charts"""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter,
                            rightMargin=72, leftMargin=72,
                            topMargin=72, bottomMargin=18)
     
-    # Container for PDF elements
     elements = []
-    
-    # Define styles
     styles = getSampleStyleSheet()
     
     title_style = ParagraphStyle(
@@ -166,18 +98,12 @@ def markdown_to_pdf(markdown_text, company_name):
     )
     
     def clean_text(text):
-        """Clean and escape text for PDF"""
-        # Remove any existing HTML tags except the ones we want
         text = re.sub(r'<(?!/?[bi]>)[^>]+>', '', text)
-        # Escape special characters
         text = html.escape(text, quote=False)
-        # Convert markdown bold to HTML
         text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-        # Convert markdown italic to HTML
         text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
         return text
     
-    # Parse markdown
     lines = markdown_text.split('\n')
     
     for line in lines:
@@ -188,249 +114,413 @@ def markdown_to_pdf(markdown_text, company_name):
             continue
         
         try:
-            # Title (# )
             if line.startswith('# '):
                 text = clean_text(line[2:].strip())
                 elements.append(Paragraph(text, title_style))
                 elements.append(Spacer(1, 0.3*inch))
-            
-            # Heading (## )
             elif line.startswith('## '):
                 text = clean_text(line[3:].strip())
                 elements.append(Spacer(1, 0.2*inch))
                 elements.append(Paragraph(text, heading_style))
-            
-            # Subheading (### )
             elif line.startswith('### '):
                 text = clean_text(line[4:].strip())
                 elements.append(Paragraph(text, subheading_style))
-            
-            # Horizontal line
             elif line.startswith('---'):
                 elements.append(Spacer(1, 0.2*inch))
-            
-            # List items (- or *)
             elif line.startswith('- ') or line.startswith('* '):
                 text = clean_text(line[2:].strip())
-                elements.append(Paragraph(f"• {text}", normal_style))
-            
-            # Regular text
+                elements.append(Paragraph(f'• {text}', normal_style))
             else:
                 text = clean_text(line)
-                if text:  # Only add non-empty text
+                if text:
                     elements.append(Paragraph(text, normal_style))
-        
         except Exception as e:
-            # If a line fails, skip it and continue
-            print(f"Skipping line due to error: {e}")
             continue
     
-    # Build PDF
+    # Add charts if provided
+    if chart_paths:
+        elements.append(Spacer(1, 0.5*inch))
+        elements.append(Paragraph('Visual Comparisons', heading_style))
+        elements.append(Spacer(1, 0.3*inch))
+        
+        for chart_type, chart_path in chart_paths.items():
+            try:
+                elements.append(Paragraph(f'{chart_type.title()} Chart', subheading_style))
+                img = RLImage(chart_path, width=6*inch, height=4*inch)
+                elements.append(img)
+                elements.append(Spacer(1, 0.3*inch))
+            except Exception as e:
+                elements.append(Paragraph(f'Chart could not be embedded: {chart_type}', normal_style))
+    
     try:
         doc.build(elements)
         buffer.seek(0)
         return buffer
     except Exception as e:
-        # If PDF generation fails completely, create a simple error PDF
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter)
         error_elements = [
-            Paragraph("Error Generating PDF", title_style),
+            Paragraph('Error Generating PDF', title_style),
             Spacer(1, 0.5*inch),
-            Paragraph("The report was generated successfully but could not be converted to PDF format.", normal_style),
-            Paragraph("Please download the Markdown version instead.", normal_style)
+            Paragraph('Please download the Markdown version instead.', normal_style)
         ]
         doc.build(error_elements)
         buffer.seek(0)
         return buffer
 
-# Sidebar - Research History
+def analyze_single_company_streamlit(company_name):
+    """Analyze a single company for Streamlit"""
+    researcher = ResearcherAgent()
+    analyst = AnalystAgent()
+    
+    company_data = {'company_name': company_name}
+    
+    with st.spinner('🔍 Researching company...'):
+        company_data['company_research'] = researcher.research_company(company_name)
+    
+    with st.spinner('🏢 Identifying competitors...'):
+        company_data['competitors_research'] = researcher.research_competitors(company_name)
+    
+    with st.spinner('📊 Analyzing competition...'):
+        company_data['competitive_analysis'] = analyst.analyze_competition(
+            company_data['company_research'],
+            company_data['competitors_research']
+        )
+    
+    with st.spinner('💡 Generating SWOT...'):
+        company_data['swot_analysis'] = analyst.generate_swot(
+            company_data['company_research'],
+            company_data['competitive_analysis']
+        )
+    
+    with st.spinner('💰 Analyzing pricing...'):
+        company_data['pricing_analysis'] = analyst.analyze_pricing(company_name, [company_name])
+    
+    return company_data
+
+# Initialize session state
+if 'analysis_complete' not in st.session_state:
+    st.session_state.analysis_complete = False
+if 'final_report' not in st.session_state:
+    st.session_state.final_report = None
+if 'company_name' not in st.session_state:
+    st.session_state.company_name = None
+if 'comparison_complete' not in st.session_state:
+    st.session_state.comparison_complete = False
+if 'comparison_data' not in st.session_state:
+    st.session_state.comparison_data = None
+if 'visual_data' not in st.session_state:
+    st.session_state.visual_data = None
+if 'comparison_names' not in st.session_state:
+    st.session_state.comparison_names = None
+
+# Sidebar
 with st.sidebar:
-    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-title">Recent Research</div>', unsafe_allow_html=True)
+    st.markdown('### Analysis Mode')
+    analysis_mode = st.radio(
+        'Select Mode',
+        ['Single Company', 'Multi-Company Comparison'],
+        label_visibility='collapsed'
+    )
     
-    history = load_history()
-    
-    if history:
-        for item in history:
-            with st.container():
-                st.markdown(f"""
-                <div class="history-item">
-                    <div style="font-weight: 500; color: #1f2937;">{item['company']}</div>
-                    <div style="font-size: 0.8rem; color: #6b7280; margin-top: 0.25rem;">{item['date']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.markdown('<p style="color: #9ca3af; font-size: 0.9rem;">No recent research yet</p>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Clear history button
-    if history and st.button("Clear History", use_container_width=True):
-        with open(HISTORY_FILE, 'w') as f:
-            json.dump([], f)
+    # Reset button
+    if st.button('🔄 Reset Analysis', use_container_width=True):
+        st.session_state.analysis_complete = False
+        st.session_state.final_report = None
+        st.session_state.company_name = None
+        st.session_state.comparison_complete = False
+        st.session_state.comparison_data = None
+        st.session_state.visual_data = None
+        st.session_state.comparison_names = None
         st.rerun()
 
 # Header
-st.markdown('<h1 class="main-header">Competitive Analysis Agent</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">AI-powered market intelligence and competitor research</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">🎯 Competitive Analysis Agent</h1>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; color: #6b7280;">AI-powered market intelligence and competitor research</p>', unsafe_allow_html=True)
+st.markdown('---')
 
-# Input section
-col1, col2, col3 = st.columns([1, 2, 1])
-
-with col2:
-    company_name = st.text_input(
-        "",
-        placeholder="Enter company name (e.g., Notion, Slack, Figma)",
-        label_visibility="collapsed"
-    )
+# Main content based on mode
+if analysis_mode == 'Single Company':
     
-    analyze_button = st.button("Start Analysis", type="primary", use_container_width=True)
-
-# Analysis section
-if analyze_button and company_name:
-    st.markdown("---")
+    # Show input only if analysis not complete
+    if not st.session_state.analysis_complete:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col2:
+            company_name = st.text_input(
+                'Company Name',
+                placeholder='Enter company name (e.g., Notion, Slack, Figma)',
+                label_visibility='collapsed'
+            )
+            
+            analyze_button = st.button('🚀 Start Analysis', type='primary', use_container_width=True)
+        
+        if analyze_button and company_name:
+            st.markdown('---')
+            
+            progress_bar = st.progress(0)
+            
+            try:
+                report_generator = ReportGeneratorAgent()
+                all_data = {}
+                
+                # Step 1-5 (same as before)
+                st.info('📊 Step 1/6: Researching Company')
+                progress_bar.progress(15)
+                with st.spinner('Researching...'):
+                    researcher = ResearcherAgent()
+                    all_data['company_research'] = researcher.research_company(company_name)
+                st.success('✅ Company research complete')
+                
+                st.info('🏢 Step 2/6: Identifying Competitors')
+                progress_bar.progress(30)
+                with st.spinner('Finding competitors...'):
+                    all_data['competitors_research'] = researcher.research_competitors(company_name)
+                st.success('✅ Competitors identified')
+                
+                st.info('📈 Step 3/6: Analyzing Competition')
+                progress_bar.progress(50)
+                with st.spinner('Analyzing...'):
+                    analyst = AnalystAgent()
+                    all_data['competitive_analysis'] = analyst.analyze_competition(
+                        all_data['company_research'],
+                        all_data['competitors_research']
+                    )
+                st.success('✅ Competitive analysis complete')
+                
+                st.info('💡 Step 4/6: Generating SWOT')
+                progress_bar.progress(65)
+                with st.spinner('Creating SWOT...'):
+                    all_data['swot_analysis'] = analyst.generate_swot(
+                        all_data['company_research'],
+                        all_data['competitive_analysis']
+                    )
+                st.success('✅ SWOT analysis complete')
+                
+                st.info('💰 Step 5/6: Analyzing Pricing')
+                progress_bar.progress(80)
+                with st.spinner('Analyzing pricing...'):
+                    all_data['pricing_analysis'] = analyst.analyze_pricing(company_name, [company_name])
+                st.success('✅ Pricing analysis complete')
+                
+                st.info('📝 Step 6/6: Generating Report')
+                progress_bar.progress(95)
+                with st.spinner('Creating report...'):
+                    final_report = report_generator.generate_final_report(company_name, all_data)
+                
+                progress_bar.progress(100)
+                st.success('✅ Analysis Complete!')
+                
+                # Save to session state
+                st.session_state.analysis_complete = True
+                st.session_state.final_report = final_report
+                st.session_state.company_name = company_name
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f'❌ Error: {str(e)}')
+                with st.expander('Error Details'):
+                    st.exception(e)
+        
+        elif analyze_button and not company_name:
+            st.warning('⚠️ Please enter a company name')
     
-    # Initialize progress
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    try:
-        # Initialize agents
-        researcher = ResearcherAgent()
-        analyst = AnalystAgent()
-        report_generator = ReportGeneratorAgent()
+    # Display results if analysis is complete
+    if st.session_state.analysis_complete and st.session_state.final_report:
+        st.markdown('---')
+        st.markdown('## 📄 Final Report')
+        st.markdown(st.session_state.final_report)
         
-        all_data = {}
-        
-        # Step 1: Company Research
-        status_text.markdown('<div class="step-header">Step 1/6: Researching Company</div>', unsafe_allow_html=True)
-        progress_bar.progress(10)
-        
-        with st.spinner(f"Researching {company_name}..."):
-            company_research = researcher.research_company(company_name)
-            all_data['company_research'] = company_research
-        
-        progress_bar.progress(20)
-        st.markdown('<div class="step-complete">✓ Company research complete</div>', unsafe_allow_html=True)
-        
-        with st.expander("View Company Research Summary"):
-            st.markdown(company_research.get('summary', 'No summary available'))
-        
-        # Step 2: Competitor Research
-        status_text.markdown('<div class="step-header">Step 2/6: Identifying Competitors</div>', unsafe_allow_html=True)
-        progress_bar.progress(30)
-        
-        with st.spinner("Finding competitors..."):
-            competitors_research = researcher.research_competitors(company_name)
-            all_data['competitors_research'] = competitors_research
-        
-        progress_bar.progress(40)
-        st.markdown('<div class="step-complete">✓ Competitors identified</div>', unsafe_allow_html=True)
-        
-        with st.expander("View Identified Competitors"):
-            st.markdown(competitors_research.get('identified_competitors', 'No competitors found'))
-        
-        # Step 3: Competitive Analysis
-        status_text.markdown('<div class="step-header">Step 3/6: Analyzing Competition</div>', unsafe_allow_html=True)
-        progress_bar.progress(50)
-        
-        with st.spinner("Performing competitive analysis..."):
-            competitive_analysis = analyst.analyze_competition(company_research, competitors_research)
-            all_data['competitive_analysis'] = competitive_analysis
-        
-        progress_bar.progress(60)
-        st.markdown('<div class="step-complete">✓ Competitive analysis complete</div>', unsafe_allow_html=True)
-        
-        with st.expander("View Competitive Analysis"):
-            st.markdown(competitive_analysis.get('competitive_analysis', 'No analysis available'))
-        
-        # Step 4: SWOT Analysis
-        status_text.markdown('<div class="step-header">Step 4/6: Generating SWOT Analysis</div>', unsafe_allow_html=True)
-        progress_bar.progress(70)
-        
-        with st.spinner("Creating SWOT analysis..."):
-            swot_analysis = analyst.generate_swot(company_research, competitive_analysis)
-            all_data['swot_analysis'] = swot_analysis
-        
-        progress_bar.progress(80)
-        st.markdown('<div class="step-complete">✓ SWOT analysis complete</div>', unsafe_allow_html=True)
-        
-        with st.expander("View SWOT Analysis"):
-            st.markdown(swot_analysis.get('swot_analysis', 'No SWOT available'))
-        
-        # Step 5: Pricing Analysis
-        status_text.markdown('<div class="step-header">Step 5/6: Analyzing Pricing Strategy</div>', unsafe_allow_html=True)
-        progress_bar.progress(85)
-        
-        with st.spinner("Analyzing pricing..."):
-            pricing_analysis = analyst.analyze_pricing(company_name, [company_name])
-            all_data['pricing_analysis'] = pricing_analysis
-        
-        progress_bar.progress(90)
-        st.markdown('<div class="step-complete">✓ Pricing analysis complete</div>', unsafe_allow_html=True)
-        
-        with st.expander("View Pricing Analysis"):
-            st.markdown(pricing_analysis.get('analysis', 'No pricing analysis available'))
-        
-        # Step 6: Generate Report
-        status_text.markdown('<div class="step-header">Step 6/6: Generating Final Report</div>', unsafe_allow_html=True)
-        progress_bar.progress(95)
-        
-        with st.spinner("Creating comprehensive report..."):
-            final_report = report_generator.generate_final_report(company_name, all_data)
-        
-        progress_bar.progress(100)
-        status_text.markdown('<div class="step-complete">✓ Analysis complete</div>', unsafe_allow_html=True)
-        
-        # Save to history
+        # Download Buttons (with key to prevent rerun)
+        st.markdown('---')
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        save_to_history(company_name, timestamp)
+        filename_md = f'{st.session_state.company_name.replace(" ", "_")}_analysis_{timestamp}.md'
+        filename_pdf = f'{st.session_state.company_name.replace(" ", "_")}_analysis_{timestamp}.pdf'
         
-        # Display final report
-        st.markdown("---")
-        st.markdown("## Final Report")
-        
-        st.markdown(final_report)
-        
-        # Download buttons
-        st.markdown("---")
         col1, col2 = st.columns(2)
         
         with col1:
-            # Markdown download
-            filename_md = f"{company_name.replace(' ', '_')}_analysis_{timestamp}.md"
             st.download_button(
-                label="Download as Markdown",
-                data=final_report,
+                '📄 Download as Markdown',
+                st.session_state.final_report,
                 file_name=filename_md,
-                mime="text/markdown",
-                use_container_width=True
+                mime='text/markdown',
+                use_container_width=True,
+                key='download_md_single'
             )
         
         with col2:
-            # PDF download
-            pdf_buffer = markdown_to_pdf(final_report, company_name)
-            filename_pdf = f"{company_name.replace(' ', '_')}_analysis_{timestamp}.pdf"
+            pdf_buffer = markdown_to_pdf(st.session_state.final_report, st.session_state.company_name)
             st.download_button(
-                label="Download as PDF",
-                data=pdf_buffer,
+                '📕 Download as PDF',
+                pdf_buffer,
                 file_name=filename_pdf,
-                mime="application/pdf",
-                use_container_width=True
+                mime='application/pdf',
+                use_container_width=True,
+                key='download_pdf_single'
+            )
+
+else:  # Multi-Company Comparison
+    
+    # Show input only if comparison not complete
+    if not st.session_state.comparison_complete:
+        st.markdown('### 🔄 Multi-Company Comparison')
+        
+        num_companies = st.number_input('Number of companies', min_value=2, max_value=5, value=2)
+        
+        company_names = []
+        cols = st.columns(num_companies)
+        
+        for i in range(num_companies):
+            with cols[i]:
+                company = st.text_input(f'Company {i+1}', key=f'comp_{i}')
+                if company:
+                    company_names.append(company)
+        
+        compare_button = st.button('🔄 Compare Companies', type='primary', use_container_width=True)
+        
+        if compare_button and len(company_names) >= 2:
+            st.markdown('---')
+            
+            progress_bar = st.progress(0)
+            
+            try:
+                companies_data = []
+                
+                # Analyze each company
+                for idx, company in enumerate(company_names):
+                    st.info(f'Analyzing {company} ({idx+1}/{len(company_names)})')
+                    progress_bar.progress(int((idx / len(company_names)) * 60))
+                    
+                    data = analyze_single_company_streamlit(company)
+                    companies_data.append(data)
+                    
+                    st.success(f'✅ {company} complete')
+                
+                # Generate comparison
+                st.info('📊 Generating comparison report...')
+                progress_bar.progress(70)
+                
+                comparison_agent = ComparisonAgent()
+                comparison_data = comparison_agent.compare_companies(companies_data)
+                
+                st.success('✅ Comparison complete')
+                
+                # Generate charts
+                st.info('📈 Creating visual charts...')
+                progress_bar.progress(85)
+                
+                visual_generator = VisualGeneratorAgent()
+                visual_data = visual_generator.generate_all_charts(companies_data)
+                
+                progress_bar.progress(100)
+                st.success('✅ All visualizations complete!')
+                
+                # Save to session state
+                st.session_state.comparison_complete = True
+                st.session_state.comparison_data = comparison_data
+                st.session_state.visual_data = visual_data
+                st.session_state.comparison_names = company_names
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f'❌ Error: {str(e)}')
+                with st.expander('Error Details'):
+                    st.exception(e)
+        
+        elif compare_button:
+            st.warning('⚠️ Please enter at least 2 companies')
+    
+    # Display results if comparison is complete
+    if st.session_state.comparison_complete and st.session_state.comparison_data:
+        st.markdown('---')
+        st.markdown('## 📊 Comparison Report')
+        st.markdown(st.session_state.comparison_data['comparison_analysis'])
+        
+        # Display Charts
+        st.markdown('---')
+        st.markdown('## 📈 Visual Comparisons')
+        
+        tab1, tab2, tab3 = st.tabs(['🎯 Radar Chart', '📊 Bar Chart', '🔥 Heatmap'])
+        
+        with tab1:
+            radar_img = Image.open(st.session_state.visual_data['charts']['radar'])
+            st.image(radar_img, use_container_width=True)
+            
+            with open(st.session_state.visual_data['charts']['radar'], 'rb') as f:
+                st.download_button(
+                    '📥 Download Radar Chart',
+                    f,
+                    file_name=st.session_state.visual_data['charts']['radar'],
+                    mime='image/png',
+                    use_container_width=True,
+                    key='download_radar'
+                )
+        
+        with tab2:
+            bar_img = Image.open(st.session_state.visual_data['charts']['bar'])
+            st.image(bar_img, use_container_width=True)
+            
+            with open(st.session_state.visual_data['charts']['bar'], 'rb') as f:
+                st.download_button(
+                    '📥 Download Bar Chart',
+                    f,
+                    file_name=st.session_state.visual_data['charts']['bar'],
+                    mime='image/png',
+                    use_container_width=True,
+                    key='download_bar'
+                )
+        
+        with tab3:
+            heatmap_img = Image.open(st.session_state.visual_data['charts']['heatmap'])
+            st.image(heatmap_img, use_container_width=True)
+            
+            with open(st.session_state.visual_data['charts']['heatmap'], 'rb') as f:
+                st.download_button(
+                    '📥 Download Heatmap',
+                    f,
+                    file_name=st.session_state.visual_data['charts']['heatmap'],
+                    mime='image/png',
+                    use_container_width=True,
+                    key='download_heatmap'
+                )
+        
+        # Download full report
+        st.markdown('---')
+        st.markdown('### 📥 Download Reports')
+        
+        report = ComparisonAgent().generate_comparison_report(st.session_state.comparison_data)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename_md = f'comparison_{"_vs_".join([c.replace(" ", "_") for c in st.session_state.comparison_names])}_{timestamp}.md'
+        filename_pdf = f'comparison_{"_vs_".join([c.replace(" ", "_") for c in st.session_state.comparison_names])}_{timestamp}.pdf'
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.download_button(
+                '📄 Download as Markdown',
+                report,
+                file_name=filename_md,
+                mime='text/markdown',
+                use_container_width=True,
+                key='download_md_comparison'
             )
         
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        with st.expander("View Error Details"):
-            st.exception(e)
-
-elif analyze_button and not company_name:
-    st.warning("Please enter a company name to analyze.")
+        with col2:
+            pdf_buffer = markdown_to_pdf(report, '_vs_'.join(st.session_state.comparison_names), st.session_state.visual_data['charts'])
+            st.download_button(
+                '📕 Download as PDF (with Charts)',
+                pdf_buffer,
+                file_name=filename_pdf,
+                mime='application/pdf',
+                use_container_width=True,
+                key='download_pdf_comparison'
+            )
 
 # Footer
-st.markdown("---")
+st.markdown('---')
 st.markdown(
-    '<p style="text-align: center; color: #9ca3af; font-size: 0.85rem;">Built for Google-Kaggle 5-Day AI Agents Intensive Course</p>',
+    '<p style="text-align: center; color: #9ca3af;">Built for Google-Kaggle 5-Day AI Agents Intensive Course</p>',
     unsafe_allow_html=True
 )
