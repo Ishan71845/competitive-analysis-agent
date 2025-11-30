@@ -5,9 +5,9 @@ __pycache__/
 *.so
 .Python
 env/
+env.example/
 venv/
 .venv
-
 # Environment variables and config
 .env
 config.py
