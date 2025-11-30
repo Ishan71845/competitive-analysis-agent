@@ -8,12 +8,11 @@ env/
 venv/
 .venv
 
-# Environment variables and config
+# Environment variables
 .env
 api_config.py
 config.py
-api_config.example.py
-.env.example
+
 # IDE
 .vscode/
 .idea/
@@ -22,10 +21,12 @@ api_config.example.py
 .DS_Store
 Thumbs.db
 
-# Output files
+# Generated reports
 *.md
 !README.md
 
+# Session history
+session_history.json
+
 # Test files
-test_api.py
-test_direct.py
+test_*.py
