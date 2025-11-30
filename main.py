@@ -17,6 +17,7 @@ from agents.analyst import AnalystAgent
 from agents.report_generator import ReportGeneratorAgent
 from agents.comparison_agent import ComparisonAgent
 from agents.visual_generator import VisualGeneratorAgent
+from utils.memory import MemoryManager
 
 load_dotenv()
 
@@ -34,6 +35,7 @@ def single_company_analysis():
     6. Final report compilation and export
     
     The analysis results are saved as a markdown file in the current directory.
+    Session state and conversation history are tracked using MemoryManager.
     
     Returns:
         None
@@ -45,6 +47,7 @@ def single_company_analysis():
         >>> single_company_analysis()
         Enter the company name to analyze: Netflix
         🎯 Starting competitive analysis for: Netflix
+        📊 Session ID: session_20251201_120000
         ...
         ✅ ANALYSIS COMPLETE!
         📄 Report saved as: Netflix_competitive_analysis_20251130_190229.md
@@ -60,7 +63,13 @@ def single_company_analysis():
         print('❌ Company name cannot be empty!')
         return
     
+    # Initialize memory manager for this session
+    memory = MemoryManager()
+    memory.add_message('user', f'Analyze {company_name}')
+    memory.store_analysis_result('company_name', company_name)
+    
     print(f'\n🎯 Starting competitive analysis for: {company_name}')
+    print(f'📊 Session ID: {memory.session_id}')
     print('=' * 60)
     
     # Initialize agents
@@ -76,54 +85,110 @@ def single_company_analysis():
         print('\n' + '=' * 60)
         print('STEP 1: COMPANY RESEARCH')
         print('=' * 60)
+        memory.add_message('system', 'Starting company research', 
+                          metadata={'step': 1, 'agent': 'ResearcherAgent'})
+        
         company_research = researcher.research_company(company_name)
         all_data['company_research'] = company_research
+        
+        memory.add_message('agent', f'Completed research for {company_name}', 
+                          metadata={'step': 1, 'agent': 'ResearcherAgent'})
+        memory.increment_analysis_count()
         
         # Step 2: Research competitors
         print('\n' + '=' * 60)
         print('STEP 2: COMPETITOR RESEARCH')
         print('=' * 60)
+        memory.add_message('system', 'Starting competitor research', 
+                          metadata={'step': 2, 'agent': 'ResearcherAgent'})
+        
         competitors_research = researcher.research_competitors(company_name)
         all_data['competitors_research'] = competitors_research
+        
+        memory.add_message('agent', 'Competitors identified', 
+                          metadata={'step': 2, 'agent': 'ResearcherAgent'})
         
         # Step 3: Competitive analysis
         print('\n' + '=' * 60)
         print('STEP 3: COMPETITIVE ANALYSIS')
         print('=' * 60)
+        memory.add_message('system', 'Starting competitive analysis', 
+                          metadata={'step': 3, 'agent': 'AnalystAgent'})
+        
         competitive_analysis = analyst.analyze_competition(company_research, competitors_research)
         all_data['competitive_analysis'] = competitive_analysis
+        
+        memory.add_message('agent', 'Competitive analysis complete', 
+                          metadata={'step': 3, 'agent': 'AnalystAgent'})
         
         # Step 4: SWOT analysis
         print('\n' + '=' * 60)
         print('STEP 4: SWOT ANALYSIS')
         print('=' * 60)
+        memory.add_message('system', 'Starting SWOT analysis', 
+                          metadata={'step': 4, 'agent': 'AnalystAgent'})
+        
         swot_analysis = analyst.generate_swot(company_research, competitive_analysis)
         all_data['swot_analysis'] = swot_analysis
+        
+        memory.add_message('agent', 'SWOT analysis complete', 
+                          metadata={'step': 4, 'agent': 'AnalystAgent'})
         
         # Step 5: Pricing analysis
         print('\n' + '=' * 60)
         print('STEP 5: PRICING ANALYSIS')
         print('=' * 60)
+        memory.add_message('system', 'Starting pricing analysis', 
+                          metadata={'step': 5, 'agent': 'AnalystAgent'})
+        
         competitors_list = [company_name]
         pricing_analysis = analyst.analyze_pricing(company_name, competitors_list)
         all_data['pricing_analysis'] = pricing_analysis
+        
+        memory.add_message('agent', 'Pricing analysis complete', 
+                          metadata={'step': 5, 'agent': 'AnalystAgent'})
         
         # Step 6: Generate final report
         print('\n' + '=' * 60)
         print('STEP 6: GENERATING FINAL REPORT')
         print('=' * 60)
+        memory.add_message('system', 'Generating final report', 
+                          metadata={'step': 6, 'agent': 'ReportGeneratorAgent'})
+        
         final_report = report_generator.generate_final_report(company_name, all_data)
         
         # Save report
         filename = report_generator.save_report(final_report, company_name)
         
+        memory.add_message('agent', f'Report saved: {filename}', 
+                          metadata={'step': 6, 'agent': 'ReportGeneratorAgent'})
+        memory.store_analysis_result('report_filename', filename)
+        
         print('\n' + '=' * 60)
         print('✅ ANALYSIS COMPLETE!')
         print('=' * 60)
         print(f'\n📄 Report saved as: {filename}')
+        
+        # Display session statistics
+        stats = memory.get_session_stats()
+        print(f'\n📊 Session Statistics:')
+        print(f'   - Session ID: {stats["session_id"]}')
+        print(f'   - Messages exchanged: {stats["message_count"]}')
+        print(f'   - Analyses completed: {stats["analysis_count"]}')
+        
+        # Save session to file
+        try:
+            os.makedirs('sessions', exist_ok=True)
+            session_file = f'sessions/{memory.session_id}.json'
+            memory.save_to_file(session_file)
+            print(f'   - Session saved: {session_file}')
+        except Exception:
+            pass  # Silent fail if session save fails
+        
         print('\nYou can now open the report file to view the complete analysis.')
         
     except Exception as e:
+        memory.add_message('system', f'Error occurred: {str(e)}', metadata={'error': True})
         print(f'\n❌ Error occurred: {e}')
         import traceback
         traceback.print_exc()
@@ -140,6 +205,7 @@ def multi_company_comparison():
     - Comprehensive comparison report
     
     All results are saved as markdown reports and PNG chart files.
+    Session state is tracked using MemoryManager.
     
     Returns:
         None
@@ -182,7 +248,14 @@ def multi_company_comparison():
             print('❌ Company name cannot be empty!')
             return
     
+    # Initialize memory manager for comparison session
+    memory = MemoryManager()
+    memory.add_message('user', f'Compare: {", ".join(companies)}')
+    memory.store_analysis_result('companies', companies)
+    memory.store_analysis_result('comparison_mode', True)
+    
     print(f'\n🎯 Comparing: {", ".join(companies)}')
+    print(f'📊 Session ID: {memory.session_id}')
     print('=' * 60)
     
     # Analyze each company
@@ -194,6 +267,9 @@ def multi_company_comparison():
         print(f'\n[{idx}/{len(companies)}] ' + '=' * 50)
         print(f'Analyzing: {company_name}')
         print('=' * 50)
+        
+        memory.add_message('system', f'Starting analysis for {company_name}', 
+                          metadata={'company_index': idx, 'total_companies': len(companies)})
         
         company_data = {'company_name': company_name}
         
@@ -222,29 +298,46 @@ def multi_company_comparison():
             companies_data.append(company_data)
             print(f'✅ {company_name} analysis complete')
             
+            memory.add_message('agent', f'Completed analysis for {company_name}', 
+                              metadata={'company_index': idx, 'success': True})
+            memory.increment_analysis_count()
+            
         except Exception as e:
             print(f'❌ Error analyzing {company_name}: {e}')
             print(f'⚠️  Skipping {company_name}')
+            memory.add_message('system', f'Error analyzing {company_name}: {str(e)}', 
+                              metadata={'company_index': idx, 'error': True})
     
     if len(companies_data) < 2:
         print('\n❌ Need at least 2 companies to compare!')
+        memory.add_message('system', 'Comparison failed: insufficient data')
         return
     
     # Generate comparison
     print('\n' + '=' * 60)
     print('GENERATING COMPARISON REPORT')
     print('=' * 60)
+    memory.add_message('system', 'Starting comparison report generation', 
+                      metadata={'agent': 'ComparisonAgent'})
     
     comparison_agent = ComparisonAgent()
     comparison_data = comparison_agent.compare_companies(companies_data)
+    
+    memory.add_message('agent', 'Comparison report generated', 
+                      metadata={'agent': 'ComparisonAgent'})
     
     # Generate visualizations
     print('\n' + '=' * 60)
     print('GENERATING VISUAL CHARTS')
     print('=' * 60)
+    memory.add_message('system', 'Starting visualization generation', 
+                      metadata={'agent': 'VisualGeneratorAgent'})
     
     visual_generator = VisualGeneratorAgent()
     visual_data = visual_generator.generate_all_charts(companies_data)
+    
+    memory.add_message('agent', f'Generated {len(visual_data["charts"])} charts', 
+                      metadata={'agent': 'VisualGeneratorAgent', 'charts': list(visual_data['charts'].keys())})
     
     # Create and save report
     report = comparison_agent.generate_comparison_report(comparison_data)
@@ -257,6 +350,9 @@ def multi_company_comparison():
     
     filename = comparison_agent.save_comparison_report(report, [d['company_name'] for d in companies_data])
     
+    memory.store_analysis_result('comparison_report_filename', filename)
+    memory.store_analysis_result('charts_generated', visual_data['charts'])
+    
     print('\n' + '=' * 60)
     print('✅ COMPARISON COMPLETE!')
     print('=' * 60)
@@ -264,6 +360,23 @@ def multi_company_comparison():
     print(f'\n📊 Charts generated:')
     for chart_type, chart_path in visual_data['charts'].items():
         print(f'   - {chart_type.title()}: {chart_path}')
+    
+    # Display session statistics
+    stats = memory.get_session_stats()
+    print(f'\n📊 Session Statistics:')
+    print(f'   - Session ID: {stats["session_id"]}')
+    print(f'   - Messages exchanged: {stats["message_count"]}')
+    print(f'   - Companies analyzed: {stats["analysis_count"]}')
+    
+    # Save session to file
+    try:
+        os.makedirs('sessions', exist_ok=True)
+        session_file = f'sessions/{memory.session_id}.json'
+        memory.save_to_file(session_file)
+        print(f'   - Session saved: {session_file}')
+    except Exception:
+        pass  # Silent fail if session save fails
+    
     print('\nYou can now open the report and chart files!')
 
 

@@ -78,3 +78,6 @@ session_history.json
 .mypy_cache/
 .dmypy.json
 dmypy.json
+# Session files
+sessions/
+
