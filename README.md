@@ -51,6 +51,7 @@ An autonomous multi-agent system built with Google Gemini ADK that automates end
 - **Multi-Company Comparison**: Side-by-side analysis with visual charts
 - **Professional Reports**: Export to Markdown and PDF formats
 - **Data Visualization**: 3 chart types (radar, bar, heatmap) for easy comparison
+- **Session Management**: Track and persist analysis sessions with full conversation history
 
 ---
 
@@ -99,6 +100,14 @@ An autonomous multi-agent system built with Google Gemini ADK that automates end
 - **ComparisonAgent** - Multi-company comparative analysis
 - **VisualGeneratorAgent** - Data visualization (radar, bar, heatmap charts)
 
+### 🧠 **Session & Memory Management**
+- **MemoryManager** - Session tracking and conversation history
+- **Context Persistence** - Save and restore analysis sessions
+- **Message Tracking** - Record all agent interactions and decisions
+- **Session Statistics** - Track analyses performed, messages exchanged, and tokens used
+- **Auto-Save** - Automatic session file persistence in JSON format
+- **Session ID** - Unique identifier for each analysis session
+
 ### 📊 **Analysis Capabilities**
 - ✅ **Single Company Analysis** - Deep-dive research with 6-step pipeline
 - ✅ **Multi-Company Comparison** - Side-by-side analysis (2-5 companies)
@@ -114,7 +123,7 @@ An autonomous multi-agent system built with Google Gemini ADK that automates end
 - Markdown (.md) reports
 - PDF documents with embedded charts
 - High-resolution PNG charts (300 DPI)
-- Session state persistence
+- Session state persistence (JSON)
 
 ---
 
@@ -124,8 +133,9 @@ An autonomous multi-agent system built with Google Gemini ADK that automates end
 ```bash
 python main.py
 # Select: 1. Single Company Analysis
-# Enter: Netflix
-# Output: Netflix_competitive_analysis_20251130_190229.md
+# Enter: Tesla
+# Output: Tesla_competitive_analysis_20251201_120000.md
+# Session: sessions/session_20251201_120000.json
 ```
 
 ### Multi-Company Comparison
@@ -141,7 +151,6 @@ streamlit run app.py
 ---
 
 ## 🏗️ Architecture
-
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                      USER INTERFACES                           │
@@ -154,6 +163,16 @@ streamlit run app.py
 └─────────────┼──────────────────────────────┼──────────────────┘
               │                              │
               └──────────────┬───────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │   MEMORY & SESSION LAYER    │
+              │                             │
+              │    MemoryManager            │
+              │    • Session Tracking       │
+              │    • Context Persistence    │
+              │    • Conversation History   │
+              │    • Auto-Save (JSON)       │
+              └──────────────┬──────────────┘
                              │
 ┌────────────────────────────▼─────────────────────────────────┐
 │                   AGENT ORCHESTRATION                         │
@@ -210,21 +229,29 @@ streamlit run app.py
               │  • Markdown Reports        │
               │  • PDF Documents           │
               │  • PNG Charts (3 types)    │
-              │  • Session State           │
+              │  • Session Files (JSON)    │
               └────────────────────────────┘
 ```
 
-### Data Flow Example:
+### Data Flow Example with Memory Tracking:
 ```
-User Input: "Analyze Netflix"
+User Input: "Analyze Tesla"
     ↓
-ResearcherAgent: Searches web → Finds Netflix data
+MemoryManager: Creates session_20251201_120000
     ↓
+ResearcherAgent: Searches web → Finds Tesla data
+    ↓ (Memory tracks: "Starting company research", "Completed research")
 AnalystAgent: Generates SWOT + Competitive Analysis
-    ↓
+    ↓ (Memory tracks: "Starting SWOT", "SWOT complete")
 ReportGeneratorAgent: Compiles 15-page report
+    ↓ (Memory stores: report_filename, session statistics)
+Output: Tesla_competitive_analysis_20251201_120000.md
+        sessions/session_20251201_120000.json
     ↓
-Output: Netflix_competitive_analysis_20251201_120000.md
+Session Statistics Displayed:
+  - Session ID: session_20251201_120000
+  - Messages exchanged: 14
+  - Analyses completed: 1
 ```
 
 ---
@@ -284,6 +311,28 @@ python main.py
 2. **Multi-Company Comparison** - Compare 2-5 companies with visualizations
 3. **Exit**
 
+**Example Session:**
+```
+============================================================
+🚀 COMPETITIVE ANALYSIS AGENT
+============================================================
+
+Enter the company name to analyze: Tesla
+
+🎯 Starting competitive analysis for: Tesla
+📊 Session ID: session_20251201_120000
+============================================================
+
+STEP 1: COMPANY RESEARCH
+...
+
+📊 Session Statistics:
+   - Session ID: session_20251201_120000
+   - Messages exchanged: 14
+   - Analyses completed: 1
+   - Session saved: sessions/session_20251201_120000.json
+```
+
 ### Option 2: Web Interface (Streamlit)
 ```bash
 streamlit run app.py
@@ -315,7 +364,11 @@ competitive-analyst-agent/
 │
 ├── utils/                           # Utility functions
 │   ├── __init__.py
-│   └── tools.py                     # Search & scraping tools
+│   ├── tools.py                     # Search & scraping tools
+│   └── memory.py                    # Session & memory management
+│
+├── sessions/                        # Session persistence (auto-generated)
+│   └── session_*.json               # Session history files
 │
 ├── .streamlit/                      # Streamlit configuration
 │   └── config.toml
@@ -358,38 +411,45 @@ competitive-analyst-agent/
 
 ## 🔄 Agent Workflow
 
-### Single Company Analysis (6-Step Pipeline)
+### Single Company Analysis (6-Step Pipeline with Memory Tracking)
 ```
 Step 1: Company Research
    ↓ (ResearcherAgent searches web, extracts data)
+   ↓ Memory: "Starting company research" → "Completed research for Tesla"
 Step 2: Competitor Discovery
    ↓ (ResearcherAgent identifies 3-5 main competitors)
+   ↓ Memory: "Starting competitor research" → "Competitors identified"
 Step 3: Competitive Analysis
    ↓ (AnalystAgent analyzes market position)
+   ↓ Memory: "Starting competitive analysis" → "Competitive analysis complete"
 Step 4: SWOT Generation
    ↓ (AnalystAgent generates strategic insights)
+   ↓ Memory: "Starting SWOT analysis" → "SWOT analysis complete"
 Step 5: Pricing Analysis
    ↓ (AnalystAgent evaluates pricing strategy)
+   ↓ Memory: "Starting pricing analysis" → "Pricing analysis complete"
 Step 6: Report Compilation
    ↓ (ReportGeneratorAgent creates final report)
-Output: Professional Markdown Report (.md)
+   ↓ Memory: "Generating final report" → "Report saved: filename.md"
+Output: Professional Markdown Report (.md) + Session File (.json)
 ```
 
 ### Multi-Company Comparison
 ```
 For Each Company (2-5):
-  ↓ Step 1-5: Individual Analysis (parallel processing)
+  ↓ Step 1-5: Individual Analysis
+  ↓ Memory: Track each company's analysis progress
   ↓
 Aggregate All Company Data
   ↓
 Comparative Analysis (ComparisonAgent)
-  ↓
+  ↓ Memory: "Starting comparison report generation"
 Visual Chart Generation (VisualGeneratorAgent)
   │ ├── Radar Chart (8 metrics)
   │ ├── Bar Chart (comparative metrics)
   │ └── Heatmap (performance matrix)
-  ↓
-Output: Comparison Report + 3 PNG Charts
+  ↓ Memory: "Generated 3 charts"
+Output: Comparison Report + 3 PNG Charts + Session File
 ```
 
 **Time Complexity:** O(n) where n = number of companies
@@ -398,22 +458,16 @@ Output: Comparison Report + 3 PNG Charts
 
 ## 📸 Screenshots
 
-### CLI Interface
+### CLI Interface with Session Tracking
 ```
 ============================================================
 🚀 COMPETITIVE ANALYSIS AGENT
 ============================================================
 
-Select analysis mode:
-1. Single Company Analysis
-2. Multi-Company Comparison (with visual charts)
-3. Exit
-
-Enter your choice (1-3): 1
-
 Enter the company name to analyze: Tesla
 
 🎯 Starting competitive analysis for: Tesla
+📊 Session ID: session_20251201_120000
 ============================================================
 
 STEP 1: COMPANY RESEARCH
@@ -422,10 +476,59 @@ STEP 1: COMPANY RESEARCH
 STEP 2: COMPETITOR RESEARCH
 ✅ Found competitors for Tesla
 
-...
+STEP 3: COMPETITIVE ANALYSIS
+✅ Competitive analysis complete
 
+STEP 4: SWOT ANALYSIS
+✅ SWOT analysis complete
+
+STEP 5: PRICING ANALYSIS
+✅ Pricing analysis complete
+
+STEP 6: GENERATING FINAL REPORT
+✅ Report saved
+
+============================================================
 ✅ ANALYSIS COMPLETE!
+============================================================
+
 📄 Report saved as: Tesla_competitive_analysis_20251201_120000.md
+
+📊 Session Statistics:
+   - Session ID: session_20251201_120000
+   - Messages exchanged: 14
+   - Analyses completed: 1
+   - Session saved: sessions/session_20251201_120000.json
+```
+
+### Sample Session File (JSON)
+```json
+{
+  "session_data": {
+    "session_id": "session_20251201_120000",
+    "created_at": "2025-12-01T12:00:00",
+    "last_updated": "2025-12-01T12:01:30",
+    "analysis_count": 1,
+    "total_tokens_used": 0,
+    "company_name": "Tesla",
+    "report_filename": "Tesla_competitive_analysis_20251201_120000.md"
+  },
+  "conversation_history": [
+    {
+      "role": "user",
+      "content": "Analyze Tesla",
+      "timestamp": "2025-12-01T12:00:00",
+      "metadata": {}
+    },
+    {
+      "role": "system",
+      "content": "Starting company research",
+      "timestamp": "2025-12-01T12:00:05",
+      "metadata": {"step": 1, "agent": "ResearcherAgent"}
+    }
+    // ... more messages
+  ]
+}
 ```
 
 ### Sample Report Output Structure
@@ -500,7 +603,7 @@ Premium positioning with competitive features...
 
 ### Architecture
 - **Total Agents:** 5 specialized agents
-- **Lines of Code:** ~2,000+ (well-documented with comprehensive docstrings)
+- **Lines of Code:** ~2,500+ (well-documented with comprehensive docstrings)
 - **Analysis Pipeline:** 6-step sequential workflow
 - **Integration Points:** 3 (Gemini API, SerpAPI, ReportLab)
 
@@ -508,15 +611,15 @@ Premium positioning with competitive features...
 - **Multi-Agent System:** ✅ 5 agents working in sequence
 - **Custom Tools:** ✅ Search, scraping, PDF generation
 - **Dual Interfaces:** ✅ CLI + Streamlit web app
-- **Session Management:** ✅ State persistence
-- **Export Capabilities:** ✅ 3 formats (MD, PDF, PNG)
+- **Session Management:** ✅ MemoryManager with context tracking
+- **Export Capabilities:** ✅ 4 formats (MD, PDF, PNG, JSON)
 - **Visualizations:** ✅ 3 chart types
 
 ### Quality Metrics
 - **Code Documentation:** 100% (comprehensive docstrings following Google style)
 - **Error Handling:** Graceful failures with user feedback
 - **Test Coverage:** Manual testing across 10+ companies
-- **User Experience:** Progress tracking + clear output formatting
+- **User Experience:** Progress tracking + session statistics
 
 ### Performance Benchmarks
 - **Single Analysis:** 45-60 seconds average
@@ -524,6 +627,7 @@ Premium positioning with competitive features...
 - **Multi-Company (5):** 5-7 minutes average
 - **Report Generation:** <5 seconds
 - **Chart Generation:** <10 seconds (all 3 charts)
+- **Session Save:** <1 second
 
 ---
 
@@ -548,7 +652,6 @@ Contributions are welcome! Please follow these steps:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ```
 MIT License
 
@@ -606,6 +709,7 @@ Planned features for v2.0:
 - [ ] Advanced visualizations (sunburst, sankey diagrams)
 - [ ] Sentiment analysis of competitor reviews
 - [ ] Financial metrics integration (stock prices, revenue)
+- [x] Session and memory management (✅ Completed)
 
 ---
 
@@ -614,5 +718,7 @@ Planned features for v2.0:
 **⭐ If you find this project useful, please consider giving it a star!**
 
 **Made with ❤️ using Google Gemini ADK**
+
+[Report Bug](https://github.com/Ishan71845/competitive-analyst-agent/issues) · [Request Feature](https://github.com/Ishan71845/competitive-analyst-agent/issues)
 
 </div>
