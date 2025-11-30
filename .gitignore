@@ -5,13 +5,15 @@ __pycache__/
 *.so
 .Python
 env/
-env.example/
 venv/
 .venv
+
 # Environment variables and config
 .env
+api_config.py
 config.py
-
+api_config.example.py
+.env.example
 # IDE
 .vscode/
 .idea/
@@ -23,7 +25,6 @@ Thumbs.db
 # Output files
 *.md
 !README.md
-!.env.example
 
 # Test files
 test_api.py
