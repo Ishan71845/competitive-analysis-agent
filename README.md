@@ -615,6 +615,4 @@ Planned features for v2.0:
 
 **Made with ❤️ using Google Gemini ADK**
 
-[Report Bug](https://github.com/Ishan71845/competitive-analyst-agent/issues) · [Request Feature](https://github.com/Ishan71845/competitive-analyst-agent/issues)
-
 </div>
