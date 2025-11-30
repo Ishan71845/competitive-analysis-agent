@@ -719,7 +719,7 @@ Planned features for v2.0:
 
 **Made with ❤️ using Google Gemini ADK**
 
-**GitHub:** [github.com/Ishan71845/competitive-analyst-agent](https://github.com/Ishan71845/competitive-analyst-agent)
+**GitHub:** [github.com/Ishan71845/competitive-analysis-agent](https://github.com/Ishan71845/competitive-analysis-agent)
 
 
 </div>
