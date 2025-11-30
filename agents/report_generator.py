@@ -1,4 +1,5 @@
 import os
+from api_config import GOOGLE_API_KEY
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -8,7 +9,7 @@ load_dotenv()
 
 class ReportGeneratorAgent:
     def __init__(self):
-        self.client = genai.Client(api_key="AIzaSyDQkcA8-kSv44w5F_fxOJ8KFXGSpvkRQ-0")
+        self.client = genai.Client(api_key=GOOGLE_API_KEY)
         self.model_id = "gemini-2.5-flash"
         
     def generate_final_report(self, company_name: str, all_data: dict) -> str:
