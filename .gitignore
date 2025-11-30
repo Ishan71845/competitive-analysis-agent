@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+env/
+venv/
+.venv
+
+# Environment variables and config
+.env
+config.py
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output files
+*.md
+!README.md
+!.env.example
+
+# Test files
+test_api.py
+test_direct.py
