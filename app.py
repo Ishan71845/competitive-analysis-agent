@@ -1,4 +1,23 @@
-﻿import streamlit as st
+﻿"""
+Competitive Analysis Agent - Streamlit Web Interface
+
+This module provides a modern web interface for the Competitive Analysis Agent
+using Streamlit. Features include interactive analysis workflows, real-time
+progress tracking, visual chart display, and export capabilities (Markdown/PDF).
+
+Features:
+    - Single company deep-dive analysis
+    - Multi-company comparison (2-5 companies)
+    - Interactive visualizations (radar, bar, heatmap charts)
+    - PDF and Markdown export with embedded charts
+    - Session state management for smooth UX
+
+Author: Ishan
+Course: Google-Kaggle 5-Day AI Agents Intensive Course (Capstone Project)
+Date: November 2025
+"""
+
+import streamlit as st
 import sys
 import os
 from datetime import datetime
@@ -48,8 +67,38 @@ st.markdown('''
 </style>
 ''', unsafe_allow_html=True)
 
+
 def markdown_to_pdf(markdown_text, company_name, chart_paths=None):
-    """Convert markdown report to PDF with optional charts"""
+    """
+    Convert markdown report to formatted PDF with optional embedded charts.
+    
+    This function takes markdown-formatted text and converts it to a professionally
+    styled PDF document using ReportLab. Supports headings, lists, bold/italic text,
+    and embedded PNG charts.
+    
+    Args:
+        markdown_text (str): Markdown-formatted report text to convert
+        company_name (str): Name of the company for the report title
+        chart_paths (dict, optional): Dictionary mapping chart types to file paths.
+            Format: {'radar': 'path/to/radar.png', 'bar': 'path/to/bar.png'}
+            Defaults to None.
+    
+    Returns:
+        BytesIO: PDF file buffer ready for download or streaming
+        
+    Raises:
+        Exception: If PDF generation fails (returns minimal error PDF)
+        
+    Example:
+        >>> pdf_buffer = markdown_to_pdf(report_text, "Netflix", chart_paths)
+        >>> st.download_button("Download PDF", pdf_buffer, "report.pdf")
+    
+    Note:
+        - Automatically cleans markdown syntax (**, *, #, ##, ###)
+        - Sanitizes HTML to prevent injection
+        - Charts are embedded at 6"x4" size
+        - Falls back to error PDF if generation fails
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter,
                            rightMargin=72, leftMargin=72,
@@ -58,6 +107,7 @@ def markdown_to_pdf(markdown_text, company_name, chart_paths=None):
     elements = []
     styles = getSampleStyleSheet()
     
+    # Define custom styles
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
@@ -98,6 +148,7 @@ def markdown_to_pdf(markdown_text, company_name, chart_paths=None):
     )
     
     def clean_text(text):
+        """Clean and sanitize text for PDF rendering"""
         text = re.sub(r'<(?!/?[bi]>)[^>]+>', '', text)
         text = html.escape(text, quote=False)
         text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
@@ -106,6 +157,7 @@ def markdown_to_pdf(markdown_text, company_name, chart_paths=None):
     
     lines = markdown_text.split('\n')
     
+    # Parse markdown and build PDF elements
     for line in lines:
         line = line.strip()
         
@@ -152,6 +204,7 @@ def markdown_to_pdf(markdown_text, company_name, chart_paths=None):
             except Exception as e:
                 elements.append(Paragraph(f'Chart could not be embedded: {chart_type}', normal_style))
     
+    # Build PDF
     try:
         doc.build(elements)
         buffer.seek(0)
@@ -168,8 +221,40 @@ def markdown_to_pdf(markdown_text, company_name, chart_paths=None):
         buffer.seek(0)
         return buffer
 
+
 def analyze_single_company_streamlit(company_name):
-    """Analyze a single company for Streamlit"""
+    """
+    Perform comprehensive analysis of a single company (Streamlit version).
+    
+    This function runs the complete 5-step analysis pipeline with progress
+    indicators optimized for the Streamlit interface:
+    1. Company research
+    2. Competitor identification
+    3. Competitive analysis
+    4. SWOT generation
+    5. Pricing analysis
+    
+    Args:
+        company_name (str): Name of the company to analyze
+        
+    Returns:
+        dict: Complete company data including all analysis results:
+            {
+                'company_name': str,
+                'company_research': dict,
+                'competitors_research': dict,
+                'competitive_analysis': str,
+                'swot_analysis': str,
+                'pricing_analysis': str
+            }
+            
+    Raises:
+        Exception: If any analysis step fails
+        
+    Example:
+        >>> data = analyze_single_company_streamlit("Notion")
+        >>> print(data['swot_analysis'])
+    """
     researcher = ResearcherAgent()
     analyst = AnalystAgent()
     
@@ -197,6 +282,7 @@ def analyze_single_company_streamlit(company_name):
         company_data['pricing_analysis'] = analyst.analyze_pricing(company_name, [company_name])
     
     return company_data
+
 
 # Initialize session state
 if 'analysis_complete' not in st.session_state:
@@ -264,7 +350,7 @@ if analysis_mode == 'Single Company':
                 report_generator = ReportGeneratorAgent()
                 all_data = {}
                 
-                # Step 1-5 (same as before)
+                # Step 1: Company Research
                 st.info('📊 Step 1/6: Researching Company')
                 progress_bar.progress(15)
                 with st.spinner('Researching...'):
@@ -272,12 +358,14 @@ if analysis_mode == 'Single Company':
                     all_data['company_research'] = researcher.research_company(company_name)
                 st.success('✅ Company research complete')
                 
+                # Step 2: Competitor Research
                 st.info('🏢 Step 2/6: Identifying Competitors')
                 progress_bar.progress(30)
                 with st.spinner('Finding competitors...'):
                     all_data['competitors_research'] = researcher.research_competitors(company_name)
                 st.success('✅ Competitors identified')
                 
+                # Step 3: Competitive Analysis
                 st.info('📈 Step 3/6: Analyzing Competition')
                 progress_bar.progress(50)
                 with st.spinner('Analyzing...'):
@@ -288,6 +376,7 @@ if analysis_mode == 'Single Company':
                     )
                 st.success('✅ Competitive analysis complete')
                 
+                # Step 4: SWOT Analysis
                 st.info('💡 Step 4/6: Generating SWOT')
                 progress_bar.progress(65)
                 with st.spinner('Creating SWOT...'):
@@ -297,12 +386,14 @@ if analysis_mode == 'Single Company':
                     )
                 st.success('✅ SWOT analysis complete')
                 
+                # Step 5: Pricing Analysis
                 st.info('💰 Step 5/6: Analyzing Pricing')
                 progress_bar.progress(80)
                 with st.spinner('Analyzing pricing...'):
                     all_data['pricing_analysis'] = analyst.analyze_pricing(company_name, [company_name])
                 st.success('✅ Pricing analysis complete')
                 
+                # Step 6: Report Generation
                 st.info('📝 Step 6/6: Generating Report')
                 progress_bar.progress(95)
                 with st.spinner('Creating report...'):
@@ -331,7 +422,7 @@ if analysis_mode == 'Single Company':
         st.markdown('## 📄 Final Report')
         st.markdown(st.session_state.final_report)
         
-        # Download Buttons (with key to prevent rerun)
+        # Download Buttons
         st.markdown('---')
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename_md = f'{st.session_state.company_name.replace(" ", "_")}_analysis_{timestamp}.md'

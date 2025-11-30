@@ -1,3 +1,15 @@
+"""
+Competitive Analysis Agent - CLI Interface
+
+This module provides a command-line interface for performing competitive analysis
+on companies using AI-powered agents. Supports both single company analysis and
+multi-company comparisons with visual charts.
+
+Author: Ishan
+Course: Google-Kaggle 5-Day AI Agents Intensive Course (Capstone Project)
+Date: November 2025
+"""
+
 import os
 from dotenv import load_dotenv
 from agents.researcher import ResearcherAgent
@@ -8,8 +20,35 @@ from agents.visual_generator import VisualGeneratorAgent
 
 load_dotenv()
 
+
 def single_company_analysis():
-    """Run analysis for a single company"""
+    """
+    Run comprehensive competitive analysis for a single company.
+    
+    This function orchestrates a 6-step analysis process:
+    1. Company research (background, products, market position)
+    2. Competitor identification and research
+    3. Competitive landscape analysis
+    4. SWOT analysis generation
+    5. Pricing strategy analysis
+    6. Final report compilation and export
+    
+    The analysis results are saved as a markdown file in the current directory.
+    
+    Returns:
+        None
+        
+    Raises:
+        Exception: If any step in the analysis pipeline fails
+        
+    Example:
+        >>> single_company_analysis()
+        Enter the company name to analyze: Netflix
+        🎯 Starting competitive analysis for: Netflix
+        ...
+        ✅ ANALYSIS COMPLETE!
+        📄 Report saved as: Netflix_competitive_analysis_20251130_190229.md
+    """
     print('=' * 60)
     print('🚀 COMPETITIVE ANALYSIS AGENT')
     print('=' * 60)
@@ -89,8 +128,35 @@ def single_company_analysis():
         import traceback
         traceback.print_exc()
 
+
 def multi_company_comparison():
-    """Run multi-company comparison with visual charts"""
+    """
+    Run multi-company comparison analysis with visual charts.
+    
+    This function performs comparative analysis across 2-5 companies, including:
+    - Individual analysis of each company
+    - Side-by-side comparison of key metrics
+    - Visual comparisons (radar chart, bar chart, heatmap)
+    - Comprehensive comparison report
+    
+    All results are saved as markdown reports and PNG chart files.
+    
+    Returns:
+        None
+        
+    Raises:
+        Exception: If analysis fails for any company or chart generation fails
+        
+    Example:
+        >>> multi_company_comparison()
+        How many companies do you want to compare? (2-5): 2
+        Enter company #1 name: Amazon
+        Enter company #2 name: Flipkart
+        🎯 Comparing: Amazon, Flipkart
+        ...
+        ✅ COMPARISON COMPLETE!
+        📄 Report saved as: comparison_Amazon_vs_Flipkart_20251130_200505.md
+    """
     print('=' * 60)
     print('🔄 MULTI-COMPANY COMPARISON')
     print('=' * 60)
@@ -200,8 +266,30 @@ def multi_company_comparison():
         print(f'   - {chart_type.title()}: {chart_path}')
     print('\nYou can now open the report and chart files!')
 
+
 def main():
-    """Main menu"""
+    """
+    Main entry point for the CLI interface.
+    
+    Presents a menu allowing users to choose between:
+    1. Single Company Analysis - Detailed analysis of one company
+    2. Multi-Company Comparison - Comparative analysis with visualizations
+    3. Exit - Quit the application
+    
+    The function runs in a loop until the user chooses to exit.
+    
+    Returns:
+        None
+        
+    Example:
+        >>> main()
+        🚀 COMPETITIVE ANALYSIS AGENT
+        Select analysis mode:
+        1. Single Company Analysis
+        2. Multi-Company Comparison (with visual charts)
+        3. Exit
+        Enter your choice (1-3):
+    """
     print('=' * 60)
     print('🚀 COMPETITIVE ANALYSIS AGENT')
     print('=' * 60)
@@ -226,6 +314,7 @@ def main():
             break
         else:
             print('⚠️  Invalid choice. Please enter 1, 2, or 3.')
+
 
 if __name__ == '__main__':
     main()
