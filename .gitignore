@@ -70,6 +70,8 @@ charts/
 temp/
 *.log
 
+
+
 # Session and cache
 session_history.json
 .streamlit/secrets.toml
