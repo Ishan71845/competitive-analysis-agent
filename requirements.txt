@@ -1,5 +1,5 @@
 
-PIL
+Pillow
 agents
 api_config
 bs4
