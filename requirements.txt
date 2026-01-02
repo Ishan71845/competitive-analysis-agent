@@ -1,6 +1,5 @@
 streamlit
 Pillow
-google-generativeai
 beautifulsoup4
 python-dotenv
 matplotlib
@@ -9,19 +8,5 @@ reportlab
 requests
 seaborn
 google-search-results
-fastapi
-uvicorn
-pydantic
-
-# --- Existing dependencies ---
-streamlit
-Pillow
-google-generativeai
-beautifulsoup4
-python-dotenv
-matplotlib
-pandas
-reportlab
-requests
-seaborn
-google-search-results
+google-genai>=1.45.0,<2.0.0
+websockets>=15.0.1,<16.0.0
