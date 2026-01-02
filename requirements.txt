@@ -9,3 +9,19 @@ reportlab
 requests
 seaborn
 google-search-results
+fastapi
+uvicorn
+pydantic
+
+# --- Existing dependencies ---
+streamlit
+Pillow
+google-generativeai
+beautifulsoup4
+python-dotenv
+matplotlib
+pandas
+reportlab
+requests
+seaborn
+google-search-results
